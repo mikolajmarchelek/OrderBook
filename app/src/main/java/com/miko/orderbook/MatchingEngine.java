@@ -1,12 +1,14 @@
 package com.miko.orderbook;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class MatchingEngine {
 
     private final OrderBook book;
     private long nextTradeSeq = 1;
+    private final List<Trade> tradeLog = new ArrayList<>();
 
     public MatchingEngine(OrderBook book) {
         this.book = book;
@@ -57,6 +59,7 @@ public class MatchingEngine {
         if (incoming.getRemainingQty() != 0 && incoming.getType() == OrderType.LIMIT) {
             book.addRestingOrder(incoming);
         }
+        tradeLog.addAll(trades);
         return trades;
     }
 
@@ -74,4 +77,15 @@ public class MatchingEngine {
         }
         throw new IllegalStateException("unknown side: " + incoming.getSide());
     }
+
+    public List<Trade> getTradeLog() {
+       return Collections.unmodifiableList(tradeLog);
+   }
+
+   // Like submit, but also measures execution quality.
+    public ExecutionReport execute(Order incoming) {
+        Double midAtArrival = book.mid();       
+        List<Trade> fills = submit(incoming);
+        return new ExecutionReport(incoming.getId(), incoming.getSide(), midAtArrival, fills);
+}
 }
