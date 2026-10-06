@@ -104,4 +104,16 @@ public class OrderBook {
         }
         return result;
     }
+    //Snapshot of a resting order's place in its queue. null if not in the book.
+    public QueuePosition queuePosition(long orderId) {
+        Order order = orderIndex.get(orderId);
+        if (order == null) {
+            return null;
+        }
+        PriceLevel level = levelsFor(order.getSide()).get(order.getPrice());
+        if (level == null) {
+            throw new IllegalStateException("order " + orderId + " is indexed but no level exists at " + order.getPrice());       
+        }
+        return level.positionOf(order);
+    }
 }

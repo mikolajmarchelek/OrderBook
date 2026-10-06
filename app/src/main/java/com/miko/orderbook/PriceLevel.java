@@ -61,4 +61,18 @@ public class PriceLevel {
     public long getTotalQty() {return totalQty;}
     public int getOrderCount() {return orders.size();}
 
+    // Where is this order in the queue? null if it's not in this level.
+    public QueuePosition positionOf(Order target) {
+        int position = 1;
+        long qtyAhead = 0;
+        for (Order o : orders) {
+            if (o == target) {
+                return new QueuePosition(target.getPrice(), target.getSide(), target.getRemainingQty(), position, qtyAhead);
+            }
+            position++;
+            qtyAhead += o.getRemainingQty();
+        }
+        return null;
+    }
+
 }

@@ -210,4 +210,50 @@ class MatchingEngineTest {
         assertEquals(1, t1.sequence());
         assertEquals(2, t2.sequence());
     }
+
+        // ---------- queue position ----------
+
+    @Test
+    void queuePositionCountsOrdersAndQtyAhead() {
+        engine.submit(limit(1, Side.BUY, 10000, 40));
+        engine.submit(limit(2, Side.BUY, 10000, 80));
+        engine.submit(limit(3, Side.BUY, 10000, 10));   // "mine"
+
+        QueuePosition qp = book.queuePosition(3);
+
+        assertEquals(new QueuePosition(10000, Side.BUY, 10, 3, 120), qp);
+    }
+
+    @Test
+    void frontOfQueueHasNothingAhead() {
+        engine.submit(limit(1, Side.SELL, 10002, 25));
+
+        QueuePosition qp = book.queuePosition(1);
+
+        assertEquals(1, qp.position());
+        assertEquals(0, qp.qtyAhead());
+    }
+
+    @Test
+    void queuePositionImprovesWhenOrdersAheadFillOrCancel() {
+        engine.submit(limit(1, Side.BUY, 10000, 40));
+        engine.submit(limit(2, Side.BUY, 10000, 80));
+        engine.submit(limit(3, Side.BUY, 10000, 10));   // mine: 3rd, 120 ahead
+
+        engine.submit(market(4, Side.SELL, 30));        // partially fills #1 → 10 left
+        assertEquals(new QueuePosition(10000, Side.BUY, 10, 3, 90), book.queuePosition(3));
+
+        book.cancel(2);                                 // order ahead of me cancels
+        assertEquals(new QueuePosition(10000, Side.BUY, 10, 2, 10), book.queuePosition(3));
+    }
+
+    @Test
+    void queuePositionNullWhenNotResting() {
+        engine.submit(limit(1, Side.SELL, 10002, 10));
+        engine.submit(limit(2, Side.BUY, 10002, 10));   // fully fills #1
+
+        assertNull(book.queuePosition(1));    // filled → gone
+        assertNull(book.queuePosition(2));    // fully filled, never rested
+        assertNull(book.queuePosition(999));  // never existed
+    }
 }
