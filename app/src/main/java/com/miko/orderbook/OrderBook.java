@@ -92,7 +92,7 @@ public class OrderBook {
 
     public boolean contains(long orderId) { return orderIndex.containsKey(orderId); }
 
-    //Top N levels on one side, best price first. It's and immutable snapshot.
+    //Top N levels on one side, best price first. It's an immutable snapshot.
     public List<DepthLevel> depth(Side side, int levels) {
         ArrayList<DepthLevel> result = new ArrayList<>();
 
