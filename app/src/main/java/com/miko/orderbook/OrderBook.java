@@ -1,0 +1,92 @@
+package com.miko.orderbook;
+
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.TreeMap;
+
+public class OrderBook {
+    // price → level. Bids: highest first. Asks: lowest first.
+    private final TreeMap<Long, PriceLevel> bids = new TreeMap<>(Comparator.reverseOrder());
+    private final TreeMap<Long, PriceLevel> asks = new TreeMap<>();
+    // order id → order, for O(1) cancel lookup
+    private final HashMap<Long, Order> orderIndex = new HashMap<>();
+
+    // Picks the right tree for a side, so the rest of the code doesn't need if/else everywhere.
+    private TreeMap<Long, PriceLevel> levelsFor(Side side) {
+        return side == Side.BUY ? bids : asks;
+    }
+
+    // Put a LIMIT order into the book (no matching here; that's Step 3).
+    public void addRestingOrder(Order order) { 
+        if (order.getType() == OrderType.MARKET || orderIndex.containsKey(order.getId())) {
+            throw new IllegalArgumentException ("Adding a resting order must have a limit. Also the order id can't be a duplicate");
+        }
+        PriceLevel level = levelsFor(order.getSide()).computeIfAbsent(order.getPrice(), p -> new PriceLevel(p));
+        level.add(order);
+        orderIndex.put(order.getId(), order);
+
+    }
+
+    // Cancel by id. Returns false if the id isn't in the book.
+    public boolean cancel(long orderId) { 
+        Order order = orderIndex.get(orderId);
+        if (order == null) {
+            return false;
+        }
+        TreeMap<Long, PriceLevel> levels = levelsFor(order.getSide());
+        PriceLevel level = levels.get(order.getPrice());
+        
+        if (level == null) {
+            throw new IllegalStateException("order " + orderId + " is indexed but no level exists at price " + order.getPrice());
+        }
+
+        level.remove(order);
+        if (level.isEmpty()) {
+            levels.remove(order.getPrice());
+        }
+        orderIndex.remove(orderId);
+        return true;
+    }
+
+    // Best prices. null if that side is empty.
+    public Long bestBid() {
+        if (bids.isEmpty()) {
+            return null;
+        } else {
+            return bids.firstKey();
+        }
+    }
+    public Long bestAsk() {
+        if (asks.isEmpty()) {
+            return null;
+        } else {
+            return asks.firstKey();
+        }
+    }
+
+    // Spread in ticks (bestAsk - bestBid). null if either side is empty.
+    public Long spread() { 
+        if(bestBid() == null || bestAsk() == null) {
+            return null;
+        } else {
+            return bestAsk()-bestBid();
+        }
+    }
+
+    // Mid in ticks, as double: (10001 + 10002) / 2 = 10001.5
+    public Double mid() { 
+        if (bestBid() == null || bestAsk() == null) {
+            return null;
+        } else {
+        return (bestAsk() + bestBid()) / 2.0; 
+        }
+    }
+
+    // Best level on a side, for the matching engine. null if empty.
+    public PriceLevel bestLevel(Side side) {
+        var entry = levelsFor(side).firstEntry();
+        return entry == null ? null : entry.getValue();
+    }
+
+    public boolean contains(long orderId) { return orderIndex.containsKey(orderId); }
+}
