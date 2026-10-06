@@ -44,6 +44,7 @@ public class OrderBookApp extends Application {
     private MatchingEngine engine;
     private FairPrice fairPrice;
     private OrderFlowGenerator flow;
+    private IdGenerator ids;          // shared by the simulator and (soon) manual orders
 
     private double eventsPerSecond = 50;
     private double eventBudget = 0;   // fractional events carried over between ticks
@@ -70,7 +71,8 @@ public class OrderBookApp extends Application {
         book = new OrderBook();
         engine = new MatchingEngine(book);
         fairPrice = new FairPrice(10000, 0.5, random);
-        flow = new OrderFlowGenerator(engine, fairPrice, random, 0.2);
+        ids = new IdGenerator();
+        flow = new OrderFlowGenerator(engine, fairPrice, random, 0.2, ids);
 
         // --- controls ---
         Button pauseButton = new Button("Pause");

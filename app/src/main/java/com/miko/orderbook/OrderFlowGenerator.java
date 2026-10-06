@@ -14,16 +14,17 @@ public class OrderFlowGenerator {
     private final int maxOffsetTicks = 5;    // passive orders: 1..5 ticks from fair
     private final int maxQty = 50;           // order sizes: 1..50
 
-    private long nextId = 1;
+    private final IdGenerator ids;
     private final List<Long> restingIds = new ArrayList<>();   // candidates for cancels
 
     public OrderFlowGenerator(MatchingEngine engine, FairPrice fairPrice,
-                              Random random, double aggressiveness) {
-        this.engine = engine;
-        this.fairPrice = fairPrice;
-        this.random = random;
-        setAggressiveness(aggressiveness);
-    }
+                    Random random, double aggressiveness, IdGenerator ids) {
+       this.engine = engine;
+       this.fairPrice = fairPrice;
+       this.random = random;
+       this.ids = ids;
+       setAggressiveness(aggressiveness);
+   }
 
     // One event: move the fair price, then cancel OR submit a new order.
     public List<Trade> step() {
@@ -82,8 +83,8 @@ public class OrderFlowGenerator {
     }
 
     private long newId() {
-        return nextId++;
-    }
+       return ids.next();
+   }
 
     public void setAggressiveness(double aggressiveness) {
         if (aggressiveness < 0 || aggressiveness > 1) {

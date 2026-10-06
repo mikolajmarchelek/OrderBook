@@ -10,7 +10,7 @@ public class App {
     OrderBook book = new OrderBook();
     MatchingEngine engine = new MatchingEngine(book);
     FairPrice fairPrice = new FairPrice(10000, 0.5, random);
-    OrderFlowGenerator flow = new OrderFlowGenerator(engine, fairPrice, random, 0.5);
+    OrderFlowGenerator flow = new OrderFlowGenerator(engine, fairPrice, random, 0.2, new IdGenerator());    
     Simulator sim = new Simulator(engine, fairPrice, flow, 50);
 
     sim.run(30);
