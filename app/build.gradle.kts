@@ -8,6 +8,11 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
+    id("org.openjfx.javafxplugin") version "0.1.0"
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
 }
 
 repositories {
@@ -34,7 +39,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "com.miko.orderbook.App"
+    mainClass = "com.miko.orderbook.OrderBookApp"
 }
 
 tasks.named<Test>("test") {
@@ -44,3 +49,9 @@ tasks.named<Test>("test") {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
+
+javafx {
+    version = "21.0.2"
+    modules = listOf("javafx.controls")
+}
+
