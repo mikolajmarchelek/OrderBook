@@ -3,6 +3,8 @@ package com.miko.orderbook;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.List;
+
 class OrderBookTest {
 
     // helpers: id doubles as sequence
@@ -181,5 +183,74 @@ class OrderBookTest {
 
         assertTrue(book.cancel(1));
         assertFalse(book.cancel(1));
+    }
+
+        // ---------- depth snapshot ----------
+
+    @Test
+    void depthOfEmptySideIsEmpty() {
+        OrderBook book = new OrderBook();
+
+        assertTrue(book.depth(Side.BUY, 5).isEmpty());
+        assertTrue(book.depth(Side.SELL, 5).isEmpty());
+    }
+
+    @Test
+    void bidDepthIsHighToLowAndAggregatesLevels() {
+        OrderBook book = new OrderBook();
+        book.addRestingOrder(buy(1, 9998, 5));
+        book.addRestingOrder(buy(2, 10000, 10));
+        book.addRestingOrder(buy(3, 10000, 3));
+        book.addRestingOrder(buy(4, 9999, 7));
+
+        assertEquals(List.of(
+                new DepthLevel(10000, 13, 2),   // two orders summed
+                new DepthLevel(9999, 7, 1),
+                new DepthLevel(9998, 5, 1)
+        ), book.depth(Side.BUY, 10));
+    }
+
+    @Test
+    void askDepthIsLowToHigh() {
+        OrderBook book = new OrderBook();
+        book.addRestingOrder(sell(1, 10004, 30));
+        book.addRestingOrder(sell(2, 10002, 50));
+        book.addRestingOrder(sell(3, 10003, 12));
+
+        assertEquals(List.of(
+                new DepthLevel(10002, 50, 1),
+                new DepthLevel(10003, 12, 1),
+                new DepthLevel(10004, 30, 1)
+        ), book.depth(Side.SELL, 10));
+    }
+
+    @Test
+    void depthReturnsOnlyTopNLevels() {
+        OrderBook book = new OrderBook();
+        book.addRestingOrder(sell(1, 10002, 10));
+        book.addRestingOrder(sell(2, 10003, 10));
+        book.addRestingOrder(sell(3, 10004, 10));
+
+        List<DepthLevel> top2 = book.depth(Side.SELL, 2);
+
+        assertEquals(2, top2.size());
+        assertEquals(10002, top2.get(0).price());
+        assertEquals(10003, top2.get(1).price());
+        assertTrue(book.depth(Side.SELL, 0).isEmpty());
+    }
+
+    @Test
+    void depthIsASnapshotNotALiveView() {
+        OrderBook book = new OrderBook();
+        book.addRestingOrder(buy(1, 10000, 10));
+        book.addRestingOrder(buy(2, 10000, 5));
+
+        List<DepthLevel> before = book.depth(Side.BUY, 5);
+        book.cancel(1);   // book changes AFTER the snapshot was taken
+
+        // the old snapshot still shows the old state
+        assertEquals(List.of(new DepthLevel(10000, 15, 2)), before);
+        // a new snapshot shows the new state
+        assertEquals(List.of(new DepthLevel(10000, 5, 1)), book.depth(Side.BUY, 5));
     }
 }

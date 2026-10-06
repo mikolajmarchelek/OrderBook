@@ -1,5 +1,7 @@
 package com.miko.orderbook;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.TreeMap;
@@ -89,4 +91,17 @@ public class OrderBook {
     }
 
     public boolean contains(long orderId) { return orderIndex.containsKey(orderId); }
+
+    //Top N levels on one side, best price first. It's and immutable snapshot.
+    public List<DepthLevel> depth(Side side, int levels) {
+        ArrayList<DepthLevel> result = new ArrayList<>();
+
+        for (PriceLevel level : levelsFor(side).values()) {
+            if (result.size() == levels) {
+                break;
+            }
+            result.add(new DepthLevel(level.getPrice(), level.getTotalQty(), level.getOrderCount()));
+        }
+        return result;
+    }
 }
