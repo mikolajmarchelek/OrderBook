@@ -34,7 +34,7 @@ public record ExecutionReport(long orderId, Side side, Double arrivalMid, List<T
     // null if nothing filled OR arrivalMid is null (empty side at arrival)
     public Double slippageTicks() { 
         Double avg = avgPrice();
-        if (avg == 0 || arrivalMid == null) {
+        if (avg == null || arrivalMid == null) {
             return null;
         }
         if (side == Side.BUY) {
