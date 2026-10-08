@@ -6,15 +6,23 @@
  */
 
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
     application
     id("org.openjfx.javafxplugin") version "0.1.0"
+    id("me.champeau.jmh") version "0.7.2"
 }
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
+jmh {
+    warmupIterations.set(3)
+    warmup.set("1s")
+    iterations.set(10)
+    timeOnIteration.set("1s")
+    fork.set(3)
+    profilers.set(listOf("gc")) 
+}
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()

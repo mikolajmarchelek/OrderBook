@@ -1,0 +1,46 @@
+Benchmark                                                  (queueDepth)  Mode  Cnt     Score     Error   Units
+OrderBookBenchmark.addThenCancelBack                                 10  avgt   30    84.506 ±   4.803   ns/op
+OrderBookBenchmark.addThenCancelBack:·gc.alloc.rate                  10  avgt   30  3726.897 ± 218.609  MB/sec
+OrderBookBenchmark.addThenCancelBack:·gc.alloc.rate.norm             10  avgt   30   328.000 ±   0.001    B/op
+OrderBookBenchmark.addThenCancelBack:·gc.count                       10  avgt   30   266.000            counts
+OrderBookBenchmark.addThenCancelBack:·gc.time                        10  avgt   30   214.000                ms
+OrderBookBenchmark.addThenCancelBack                                100  avgt   30   208.128 ±   8.734   ns/op
+OrderBookBenchmark.addThenCancelBack:·gc.alloc.rate                 100  avgt   30  1507.982 ±  62.130  MB/sec
+OrderBookBenchmark.addThenCancelBack:·gc.alloc.rate.norm            100  avgt   30   328.006 ±   0.001    B/op
+OrderBookBenchmark.addThenCancelBack:·gc.count                      100  avgt   30   142.000            counts
+OrderBookBenchmark.addThenCancelBack:·gc.time                       100  avgt   30   110.000                ms
+OrderBookBenchmark.addThenCancelBack                               1000  avgt   30   552.835 ±  34.992   ns/op
+OrderBookBenchmark.addThenCancelBack:·gc.alloc.rate                1000  avgt   30   495.048 ±  38.811  MB/sec
+OrderBookBenchmark.addThenCancelBack:·gc.alloc.rate.norm           1000  avgt   30   285.491 ±  20.504    B/op
+OrderBookBenchmark.addThenCancelBack:·gc.count                     1000  avgt   30    52.000            counts
+OrderBookBenchmark.addThenCancelBack:·gc.time                      1000  avgt   30    45.000                ms
+OrderBookBenchmark.addThenCancelFront                                10  avgt   30    89.974 ±   3.320   ns/op
+OrderBookBenchmark.addThenCancelFront:·gc.alloc.rate                 10  avgt   30  3486.098 ± 135.740  MB/sec
+OrderBookBenchmark.addThenCancelFront:·gc.alloc.rate.norm            10  avgt   30   328.000 ±   0.001    B/op
+OrderBookBenchmark.addThenCancelFront:·gc.count                      10  avgt   30   223.000            counts
+OrderBookBenchmark.addThenCancelFront:·gc.time                       10  avgt   30   192.000                ms
+OrderBookBenchmark.addThenCancelFront                               100  avgt   30    86.345 ±   3.190   ns/op
+OrderBookBenchmark.addThenCancelFront:·gc.alloc.rate                100  avgt   30  3632.207 ± 136.436  MB/sec
+OrderBookBenchmark.addThenCancelFront:·gc.alloc.rate.norm           100  avgt   30   328.002 ±   0.001    B/op
+OrderBookBenchmark.addThenCancelFront:·gc.count                     100  avgt   30   227.000            counts
+OrderBookBenchmark.addThenCancelFront:·gc.time                      100  avgt   30   201.000                ms
+OrderBookBenchmark.addThenCancelFront                              1000  avgt   30    81.651 ±   5.078   ns/op
+OrderBookBenchmark.addThenCancelFront:·gc.alloc.rate               1000  avgt   30  3862.812 ± 250.123  MB/sec
+OrderBookBenchmark.addThenCancelFront:·gc.alloc.rate.norm          1000  avgt   30   328.023 ±   0.001    B/op
+OrderBookBenchmark.addThenCancelFront:·gc.count                    1000  avgt   30   253.000            counts
+OrderBookBenchmark.addThenCancelFront:·gc.time                     1000  avgt   30   216.000                ms
+OrderBookBenchmark.restThenMatch                                     10  avgt   30   222.445 ±  12.847   ns/op
+OrderBookBenchmark.restThenMatch:·gc.alloc.rate                      10  avgt   30  3245.501 ± 193.803  MB/sec
+OrderBookBenchmark.restThenMatch:·gc.alloc.rate.norm                 10  avgt   30   751.649 ±   1.112    B/op
+OrderBookBenchmark.restThenMatch:·gc.count                           10  avgt   30    82.000            counts
+OrderBookBenchmark.restThenMatch:·gc.time                            10  avgt   30  2594.000                ms
+OrderBookBenchmark.restThenMatch                                    100  avgt   30   228.764 ±  15.432   ns/op
+OrderBookBenchmark.restThenMatch:·gc.alloc.rate                     100  avgt   30  3255.660 ± 191.128  MB/sec
+OrderBookBenchmark.restThenMatch:·gc.alloc.rate.norm                100  avgt   30   775.257 ±  23.388    B/op
+OrderBookBenchmark.restThenMatch:·gc.count                          100  avgt   30    97.000            counts
+OrderBookBenchmark.restThenMatch:·gc.time                           100  avgt   30  2483.000                ms
+OrderBookBenchmark.restThenMatch                                   1000  avgt   30   245.569 ±  11.339   ns/op
+OrderBookBenchmark.restThenMatch:·gc.alloc.rate                    1000  avgt   30  2930.842 ± 132.142  MB/sec
+OrderBookBenchmark.restThenMatch:·gc.alloc.rate.norm               1000  avgt   30   751.694 ±   1.478    B/op
+OrderBookBenchmark.restThenMatch:·gc.count                         1000  avgt   30    71.000            counts
+OrderBookBenchmark.restThenMatch:·gc.time                          1000  avgt   30  2365.000                ms

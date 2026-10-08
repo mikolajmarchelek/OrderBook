@@ -8,8 +8,10 @@ public class Order {
     private final long originalQty;
     private long remainingQty;
     private final long sequence;
+    private final int ownerId;
+    public static final int NO_OWNER = 0;
 
-    public Order(long id, Side side, OrderType type, long price, long qty, long sequence) {
+    public Order(long id, int ownerId, Side side, OrderType type, long price, long qty, long sequence) {
         if (qty <= 0) {
             throw new IllegalArgumentException("qty must be positive");
         }
@@ -17,6 +19,7 @@ public class Order {
             throw new IllegalArgumentException("Limit Price must be positive");
         }
         this.id = id;
+        this.ownerId = ownerId;
         this.side = side;
         this.type = type;
         this.price = price;
@@ -24,6 +27,11 @@ public class Order {
         this.remainingQty = qty;
         this.sequence = sequence;
     }
+
+    public Order(long id, Side side, OrderType type, long price, long qty, long sequence) {
+        this(id, NO_OWNER, side, type, price, qty, sequence);
+    }
+    
     
     public void fill(long qty) {
         if (qty <= 0 || qty > remainingQty) {
@@ -40,6 +48,13 @@ public class Order {
     //Setters and getters
     public long getId() {
         return id;
+    }
+
+    
+
+
+    public int getOwnerId() {
+        return ownerId;
     }
 
     public Side getSide() {
@@ -73,7 +88,7 @@ public String toString() {
             + ", type=" + type
             + ", price=" + price
             + ", qty=" + remainingQty + "/" + originalQty
-            + ", seq=" + sequence + "}";
-}
-
+            + ", seq=" + sequence 
+            + ", owner=" + ownerId + "}";
+    }
 }

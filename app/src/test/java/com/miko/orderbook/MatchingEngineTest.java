@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MatchingEngineTest {
 
+    private static final int AGENT = 1;
+    private static final int OTHER = 2;
+
     private OrderBook book;
     private MatchingEngine engine;
 
@@ -23,6 +26,16 @@ class MatchingEngineTest {
 
     private Order market(long id, Side side, long qty) {
         return new Order(id, side, OrderType.MARKET, 0, qty, id);
+    }
+
+    private Order ownedLimit(long id, int owner, Side side, long price, long qty) {
+        return new Order(id, owner, side, OrderType.LIMIT, price, qty, id);
+    }
+
+    // Expected trade between two anonymous orders.
+    // aggressor = side of the order that arrived last and crossed the spread.
+    private Trade trade(long buyId, long sellId, Side aggressor, long price, long qty, long seq) {
+        return new Trade(buyId, sellId, Order.NO_OWNER, Order.NO_OWNER, aggressor, price, qty, seq);
     }
 
     // ---------- no match ----------
@@ -62,7 +75,8 @@ class MatchingEngineTest {
         engine.submit(limit(1, Side.SELL, 10002, 10));
         List<Trade> trades = engine.submit(limit(2, Side.BUY, 10002, 10));
 
-        assertEquals(List.of(new Trade(2, 1, 10002, 10, 1)), trades);
+        // incoming buy #2 crossed → BUY is the aggressor
+        assertEquals(List.of(trade(2, 1, Side.BUY, 10002, 10, 1)), trades);
         // both fully filled → book empty
         assertNull(book.bestBid());
         assertNull(book.bestAsk());
@@ -85,9 +99,10 @@ class MatchingEngineTest {
         engine.submit(limit(2, Side.BUY, 9999, 10));
         List<Trade> trades = engine.submit(limit(3, Side.SELL, 9999, 15));
 
+        // incoming sell #3 hits both resting bids → SELL is the aggressor
         assertEquals(List.of(
-                new Trade(1, 3, 10000, 10, 1),   // resting bid is the buyer
-                new Trade(2, 3, 9999, 5, 2)
+                trade(1, 3, Side.SELL, 10000, 10, 1),   // resting bid is the buyer
+                trade(2, 3, Side.SELL, 9999, 5, 2)
         ), trades);
         assertEquals(9999L, book.bestBid());
         assertEquals(5, book.bestLevel(Side.BUY).getTotalQty());
@@ -106,10 +121,11 @@ class MatchingEngineTest {
 
         List<Trade> trades = engine.submit(limit(9, Side.BUY, 10003, 65));
 
+        // incoming buy #9 sweeps the asks → BUY is the aggressor
         assertEquals(List.of(
-                new Trade(9, 2, 10002, 50, 1),
-                new Trade(9, 7, 10002, 10, 2),
-                new Trade(9, 4, 10003, 5, 3)
+                trade(9, 2, Side.BUY, 10002, 50, 1),
+                trade(9, 7, Side.BUY, 10002, 10, 2),
+                trade(9, 4, Side.BUY, 10003, 5, 3)
         ), trades);
         // level 10002 fully consumed and deleted → best ask moves up
         assertEquals(10003L, book.bestAsk());
@@ -167,9 +183,10 @@ class MatchingEngineTest {
 
         List<Trade> trades = engine.submit(market(3, Side.BUY, 30));
 
+        // market buy #3 is the aggressor
         assertEquals(List.of(
-                new Trade(3, 1, 10002, 10, 1),
-                new Trade(3, 2, 10005, 10, 2)
+                trade(3, 1, Side.BUY, 10002, 10, 1),
+                trade(3, 2, Side.BUY, 10005, 10, 2)
         ), trades);
         assertNull(book.bestAsk());
         assertNull(book.bestBid());     // leftover 10 did NOT rest
@@ -211,7 +228,7 @@ class MatchingEngineTest {
         assertEquals(2, t2.sequence());
     }
 
-        // ---------- queue position ----------
+    // ---------- queue position ----------
 
     @Test
     void queuePositionCountsOrdersAndQtyAhead() {
@@ -255,5 +272,77 @@ class MatchingEngineTest {
         assertNull(book.queuePosition(1));    // filled → gone
         assertNull(book.queuePosition(2));    // fully filled, never rested
         assertNull(book.queuePosition(999));  // never existed
+    }
+
+    // ---------- owners and aggressor ----------
+
+    @Test
+    void tradeRecordsOwnersAndAggressor() {
+        engine.submit(ownedLimit(1, AGENT, Side.BUY, 10000, 10));                      // agent rests a bid
+        List<Trade> trades = engine.submit(ownedLimit(2, OTHER, Side.SELL, 10000, 4)); // other hits it
+
+        Trade t = trades.get(0);
+        assertEquals(AGENT, t.buyOwner());
+        assertEquals(OTHER, t.sellOwner());
+        assertEquals(Side.SELL, t.aggressor());   // the incoming order crossed the spread
+    }
+
+    @Test
+    void signedQtyIsPositiveForBuyerNegativeForSeller() {
+        engine.submit(ownedLimit(1, AGENT, Side.SELL, 10001, 10));
+        Trade t = engine.submit(ownedLimit(2, OTHER, Side.BUY, 10001, 3)).get(0);
+
+        assertEquals(-3, t.signedQtyFor(AGENT));  // agent sold
+        assertEquals(3, t.signedQtyFor(OTHER));   // other bought
+        assertEquals(0, t.signedQtyFor(99));      // not involved
+    }
+
+        // ---------- self-trade prevention ----------
+
+    @Test
+    void selfTradeCancelsRestingOrderInsteadOfTrading() {
+        engine.submit(ownedLimit(1, AGENT, Side.BUY, 10000, 5));                       // agent's bid
+        List<Trade> trades = engine.submit(ownedLimit(2, AGENT, Side.SELL, 10000, 5)); // agent's own ask crosses it
+
+        assertTrue(trades.isEmpty());           // no trade with itself
+        assertFalse(book.contains(1));          // old resting bid was cancelled
+        assertTrue(book.contains(2));           // new ask rests instead
+        assertEquals(10000L, book.bestAsk());
+        assertNull(book.bestBid());
+    }
+
+    @Test
+    void selfTradePreventionSkipsOwnOrderButTradesWithOthers() {
+        engine.submit(ownedLimit(1, OTHER, Side.SELL, 10001, 3));   // other's ask, better price
+        engine.submit(ownedLimit(2, AGENT, Side.SELL, 10002, 5));   // agent's own ask
+        engine.submit(ownedLimit(3, OTHER, Side.SELL, 10003, 4));   // other's ask, worse price
+
+        List<Trade> trades = engine.submit(ownedLimit(4, AGENT, Side.BUY, 10003, 6));
+
+        // trades 3 with OTHER at 10001, cancels own ask at 10002, trades 3 more with OTHER at 10003
+        assertEquals(2, trades.size());
+        assertEquals(10001, trades.get(0).price());
+        assertEquals(10003, trades.get(1).price());
+        assertEquals(6, trades.get(0).signedQtyFor(AGENT) + trades.get(1).signedQtyFor(AGENT));
+        assertFalse(book.contains(2));          // own ask cancelled
+        assertEquals(1, book.bestLevel(Side.SELL).getTotalQty());   // 4 - 3 left at 10003
+    }
+
+    @Test
+    void anonymousOrdersAreNeverTreatedAsSelfTrades() {
+        // background flow all uses NO_OWNER, but it's many different traders
+        engine.submit(limit(1, Side.BUY, 10000, 5));
+        List<Trade> trades = engine.submit(limit(2, Side.SELL, 10000, 5));
+
+        assertEquals(1, trades.size());
+    }
+
+    @Test
+    void oldConstructorMeansNoOwner() {
+        engine.submit(limit(1, Side.BUY, 10000, 5));
+        Trade t = engine.submit(market(2, Side.SELL, 5)).get(0);
+
+        assertEquals(Order.NO_OWNER, t.buyOwner());
+        assertEquals(Order.NO_OWNER, t.sellOwner());
     }
 }

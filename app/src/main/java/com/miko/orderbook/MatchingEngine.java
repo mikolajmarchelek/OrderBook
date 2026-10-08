@@ -35,6 +35,11 @@ public class MatchingEngine {
                 break;
             }
             Order resting = best.peekFirst();
+
+            if (isSelfTrade(incoming, resting)) {
+                book.cancel(resting.getId());
+                continue;
+            }
             long qty = Math.min(incoming.getRemainingQty(), resting.getRemainingQty());
 
             incoming.fill(qty);
@@ -43,14 +48,21 @@ public class MatchingEngine {
 
             long buyId; 
             long sellId;
+            int buyOwner;
+            int sellOwner;
             if (incoming.getSide() == Side.BUY) {
                 buyId = incoming.getId();
                 sellId = resting.getId();
+                buyOwner = incoming.getOwnerId();
+                sellOwner = resting.getOwnerId();
+
             } else {
                 buyId = resting.getId();
                 sellId = incoming.getId();
+                buyOwner = resting.getOwnerId();
+                sellOwner = incoming.getOwnerId();
             }
-            trades.add(new Trade(buyId, sellId, best.getPrice(), qty, nextTradeSeq++));
+            trades.add(new Trade(buyId, sellId, buyOwner , sellOwner ,incoming.getSide(), best.getPrice(), qty, nextTradeSeq++));
 
             if (resting.isFilled()) {
                 book.cancel(resting.getId());
@@ -61,6 +73,14 @@ public class MatchingEngine {
         }
         tradeLog.addAll(trades);
         return trades;
+    }
+
+    // Same owner on both sides, and not anonymous background flow?
+    private boolean isSelfTrade(Order incoming, Order resting) {
+        if (incoming.getOwnerId() == resting.getOwnerId() && incoming.getOwnerId() != Order.NO_OWNER) {
+            return true;
+        }
+        return false;
     }
 
     // Does the incoming order accept this resting price?
@@ -87,5 +107,5 @@ public class MatchingEngine {
         Double midAtArrival = book.mid();       
         List<Trade> fills = submit(incoming);
         return new ExecutionReport(incoming.getId(), incoming.getSide(), midAtArrival, fills);
-}
+    }
 }
