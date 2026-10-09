@@ -74,7 +74,7 @@ public class OrderFlowGenerator {
     private void cancelRandom() { 
         int randIdx = random.nextInt(restingIds.size());
         long removed = restingIds.get(randIdx);
-        engine.getBook().cancel(removed);
+        engine.cancel(removed);
         restingIds.remove(randIdx);
     }
 

@@ -9,6 +9,7 @@ public class MatchingEngine {
     private final OrderBook book;
     private long nextTradeSeq = 1;
     private final List<Trade> tradeLog = new ArrayList<>();
+    private final List<OrderEvent> eventLog = new ArrayList<>();
 
     public MatchingEngine(OrderBook book) {
         this.book = book;
@@ -22,7 +23,18 @@ public class MatchingEngine {
         if (book.contains(incoming.getId())) {
             throw new IllegalArgumentException("the book already contains that order");
         }
+        eventLog.add(OrderEvent.submit(incoming));   // record the input
+        return match(incoming);
+    }
 
+    // Cancel a resting order by id. Returns false if it isn't in the book.
+    public boolean cancel(long orderId) {
+        eventLog.add(OrderEvent.cancel(orderId));     // record the input
+        return book.cancel(orderId);
+    }
+
+    // The actual matching. Private: only submit() and modify() call it.
+    private List<Trade> match(Order incoming) {
         List<Trade> trades = new ArrayList<>();
         Side opposite = incoming.getSide() == Side.BUY ? Side.SELL : Side.BUY;
 
@@ -89,6 +101,7 @@ public class MatchingEngine {
         if (newQty <= 0) {
             throw new IllegalArgumentException("new quantity must be positive");
         }
+        eventLog.add(OrderEvent.modify(orderId, newPrice, newQty));   // record the input
         Order old = book.getOrder(orderId);
         if (old == null) {
             return List.of();
@@ -104,7 +117,7 @@ public class MatchingEngine {
         book.cancel(orderId);
         Order replacement = new Order(old.getId(), old.getOwnerId(), old.getSide(),
                               OrderType.LIMIT, newPrice, newQty, old.getSequence());
-        return submit(replacement);
+        return match(replacement);   // NOT submit: that would log a second event
         }
 
     // Does the incoming order accept this resting price?
@@ -131,5 +144,9 @@ public class MatchingEngine {
         Double midAtArrival = book.mid();       
         List<Trade> fills = submit(incoming);
         return new ExecutionReport(incoming.getId(), incoming.getSide(), midAtArrival, fills);
+    }
+
+    public List<OrderEvent> getEventLog() {
+        return Collections.unmodifiableList(eventLog);
     }
 }

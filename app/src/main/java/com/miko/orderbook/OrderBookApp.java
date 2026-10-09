@@ -307,7 +307,7 @@ public class OrderBookApp extends Application {
         info.setStyle(MONO);
         Button cancel = new Button("Cancel");
         cancel.setOnAction(e -> {
-            if (book.cancel(id)) {
+            if (engine.cancel(id)) {
                 logActivity("#" + id + " cancelled");
             }
             refresh();
