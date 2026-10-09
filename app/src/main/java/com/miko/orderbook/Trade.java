@@ -20,4 +20,9 @@ public record Trade(long buyOrderId, long sellOrderId, int buyOwner, int sellOwn
         }
         return 0;
     }
+    public String toCsv() {
+        return buyOrderId + "," + sellOrderId + "," + buyOwner + "," + sellOwner + ","
+                + aggressor + "," + price + "," + quantity + "," + sequence;
+    }
+
 }

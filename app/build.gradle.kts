@@ -23,6 +23,7 @@ jmh {
     fork.set(3)
     profilers.set(listOf("gc")) 
 }
+
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
@@ -63,3 +64,11 @@ javafx {
     modules = listOf("javafx.controls")
 }
 
+// Writes the cross-language parity fixture:  .\gradlew.bat exportParity
+tasks.register<JavaExec>("exportParity") {
+    group = "parity"
+    description = "Run the seeded simulator and write events/trades/snapshots CSVs for the Python twin"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass = "com.miko.orderbook.ParityExport"
+    args("42", "10000", rootProject.file("parity").absolutePath, "50", "5")
+}
