@@ -44,14 +44,17 @@ public class Order {
         return remainingQty == 0;
     }
 
+    public void reduceQtyTo(long newQty) {
+        if (newQty <= 0 || newQty >= remainingQty) {
+            throw new IllegalArgumentException("newQty must be in (0, remaining): " + newQty);
+        }
+        remainingQty = newQty;
+    }
 
     //Setters and getters
     public long getId() {
         return id;
     }
-
-    
-
 
     public int getOwnerId() {
         return ownerId;
@@ -91,4 +94,6 @@ public String toString() {
             + ", seq=" + sequence 
             + ", owner=" + ownerId + "}";
     }
+
+
 }

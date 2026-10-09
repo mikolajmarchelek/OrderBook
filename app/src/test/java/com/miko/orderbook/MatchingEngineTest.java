@@ -345,4 +345,89 @@ class MatchingEngineTest {
         assertEquals(Order.NO_OWNER, t.buyOwner());
         assertEquals(Order.NO_OWNER, t.sellOwner());
     }
+
+        // ---------- modify (cancel/replace) ----------
+
+    @Test
+    void reducingQtyAtSamePriceKeepsQueuePosition() {
+        engine.submit(ownedLimit(1, AGENT, Side.BUY, 10000, 40));   // agent is first in line
+        engine.submit(limit(2, Side.BUY, 10000, 80));
+
+        List<Trade> trades = engine.modify(1, 10000, 25);
+
+        assertTrue(trades.isEmpty());
+        assertEquals(new QueuePosition(10000, Side.BUY, 25, 1, 0), book.queuePosition(1));  // still 1st
+        assertEquals(105, book.bestLevel(Side.BUY).getTotalQty());                           // 25 + 80
+    }
+
+    @Test
+    void increasingQtyLosesQueuePosition() {
+        engine.submit(ownedLimit(1, AGENT, Side.BUY, 10000, 10));
+        engine.submit(limit(2, Side.BUY, 10000, 30));
+
+        engine.modify(1, 10000, 15);
+
+        // asking for more size = new order at the back of the queue
+        assertEquals(new QueuePosition(10000, Side.BUY, 15, 2, 30), book.queuePosition(1));
+        assertEquals(45, book.bestLevel(Side.BUY).getTotalQty());
+    }
+
+    @Test
+    void changingPriceMovesOrderToNewLevel() {
+        engine.submit(ownedLimit(1, AGENT, Side.BUY, 10000, 10));
+        engine.submit(limit(2, Side.BUY, 10000, 30));
+
+        engine.modify(1, 10001, 10);
+
+        assertEquals(10001L, book.bestBid());
+        assertEquals(new QueuePosition(10001, Side.BUY, 10, 1, 0), book.queuePosition(1));
+        assertEquals(List.of(
+                new DepthLevel(10001, 10, 1),    // agent alone at the new price
+                new DepthLevel(10000, 30, 1)     // old level keeps only #2
+        ), book.depth(Side.BUY, 5));
+    }
+
+    @Test
+    void modifyThatCrossesTradesAsAggressor() {
+        engine.submit(ownedLimit(1, OTHER, Side.SELL, 10002, 5));
+        engine.submit(ownedLimit(2, AGENT, Side.BUY, 10000, 10));
+
+        List<Trade> trades = engine.modify(2, 10002, 10);   // agent lifts its bid through the ask
+
+        assertEquals(1, trades.size());
+        assertEquals(10002, trades.get(0).price());
+        assertEquals(Side.BUY, trades.get(0).aggressor());  // the modified order crossed the spread
+        assertEquals(5, trades.get(0).signedQtyFor(AGENT));
+        assertEquals(new QueuePosition(10002, Side.BUY, 5, 1, 0), book.queuePosition(2)); // leftover rests
+    }
+
+    @Test
+    void sameQtyAndPriceIsANoOp() {
+        engine.submit(limit(1, Side.BUY, 10000, 10));
+        engine.submit(ownedLimit(2, AGENT, Side.BUY, 10000, 10));
+        engine.submit(limit(3, Side.BUY, 10000, 10));
+
+        engine.modify(2, 10000, 10);
+
+        assertEquals(2, book.queuePosition(2).position());   // didn't lose its place
+    }
+
+    @Test
+    void modifyingMissingOrderDoesNothing() {
+        engine.submit(limit(1, Side.BUY, 10000, 10));
+
+        List<Trade> trades = engine.modify(999, 10001, 5);   // e.g. it was already filled
+
+        assertTrue(trades.isEmpty());
+        assertFalse(book.contains(999));
+        assertEquals(10000L, book.bestBid());
+    }
+
+    @Test
+    void modifyRejectsNonPositiveQty() {
+        engine.submit(limit(1, Side.BUY, 10000, 10));
+
+        assertThrows(IllegalArgumentException.class, () -> engine.modify(1, 10000, 0));
+        assertEquals(10, book.bestLevel(Side.BUY).getTotalQty());   // untouched
+    }
 }

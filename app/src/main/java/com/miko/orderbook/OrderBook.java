@@ -90,6 +90,26 @@ public class OrderBook {
         return entry == null ? null : entry.getValue();
     }
 
+    // The live resting order, or null if it isn't in the book.
+    public Order getOrder(long orderId) {
+        return orderIndex.get(orderId);
+    }
+
+    // Reduce a resting order's qty in place, keeping its queue position.
+    // Returns false if the order isn't in the book.
+    public boolean reduce(long orderId, long newQty) {
+        if(getOrder(orderId) == null) {
+            return false;
+        }
+        Order order = orderIndex.get(orderId);
+        TreeMap<Long, PriceLevel> levels = levelsFor(order.getSide());
+        PriceLevel level = levels.get(order.getPrice());
+
+        level.reduceQty(order.getRemainingQty() - newQty);
+        order.reduceQtyTo(newQty);
+        return true;
+    }
+
     public boolean contains(long orderId) { return orderIndex.containsKey(orderId); }
 
     //Top N levels on one side, best price first. It's an immutable snapshot.

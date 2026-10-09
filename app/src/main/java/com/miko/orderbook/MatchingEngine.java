@@ -83,6 +83,30 @@ public class MatchingEngine {
         return false;
     }
 
+    // Amend a resting order. Keeps the same order id.
+    // Returns trades if the new price crosses the spread.
+    public List<Trade> modify(long orderId, long newPrice, long newQty) {
+        if (newQty <= 0) {
+            throw new IllegalArgumentException("new quantity must be positive");
+        }
+        Order old = book.getOrder(orderId);
+        if (old == null) {
+            return List.of();
+        }
+        if (old.getPrice() == newPrice && old.getRemainingQty() == newQty) {
+            return List.of();
+        }
+
+        if(old.getPrice() == newPrice && old.getRemainingQty() > newQty) {
+            book.reduce(orderId, newQty);
+            return List.of();
+        }
+        book.cancel(orderId);
+        Order replacement = new Order(old.getId(), old.getOwnerId(), old.getSide(),
+                              OrderType.LIMIT, newPrice, newQty, old.getSequence());
+        return submit(replacement);
+        }
+
     // Does the incoming order accept this resting price?
     private boolean crosses(Order incoming, long restingPrice) {
         if (incoming.getType() == OrderType.MARKET) {
