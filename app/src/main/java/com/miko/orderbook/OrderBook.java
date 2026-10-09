@@ -136,4 +136,34 @@ public class OrderBook {
         }
         return level.positionOf(order);
     }
+    //Top levels on each side as fixed-length arrays, padded with zeros.
+    public BookSnapshot snapshot(int levels) {
+        if (levels  <= 0) {
+            throw new IllegalArgumentException("Levels must be positive");
+        }
+        long[] bidPrices= new long[levels];
+        long[] bidQtys = new long[levels];
+        long[] askPrices = new long[levels];
+        long[] askQtys = new long[levels];
+
+        int i = 0;
+        for (PriceLevel level : bids.values()) {
+            if (i == levels) { 
+                break;
+            }
+            bidPrices[i] = level.getPrice();
+            bidQtys[i] = level.getTotalQty();
+            i++;
+        }
+        i = 0;
+        for (PriceLevel level : asks.values()) {
+            if (i == levels) {
+                break;
+            }
+            askPrices[i] = level.getPrice();
+            askQtys[i] = level.getTotalQty();
+            i++;
+        }
+        return new BookSnapshot(bidPrices, bidQtys, askPrices, askQtys);
+    }
 }
