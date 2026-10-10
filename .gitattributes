@@ -10,3 +10,4 @@
 # Binary files should be left untouched
 *.jar           binary
 
+parity/*.csv    text eol=lf

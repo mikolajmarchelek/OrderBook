@@ -99,14 +99,19 @@ class MatchingEngine:
         return incoming.owner != NO_OWNER and incoming.owner == resting.owner
 
 
+def apply_event(engine: MatchingEngine, e: OrderEvent) -> list[Trade]:
+    """Feed one logged input into the engine. Returns the trades it produced."""
+    if e.type is EventType.SUBMIT:
+        return engine.submit(Order(e.order_id, e.owner, e.side, e.order_type, e.price, e.qty, e.order_id))
+    if e.type is EventType.CANCEL:
+        engine.cancel(e.order_id)
+        return []
+    return engine.modify(e.order_id, e.price, e.qty)
+
+
 def replay(events: list[OrderEvent]) -> MatchingEngine:
     """Feed events into a fresh engine, in order (the Java Replayer)."""
     engine = MatchingEngine()
     for e in events:
-        if e.type is EventType.SUBMIT:
-            engine.submit(Order(e.order_id, e.owner, e.side, e.order_type, e.price, e.qty, e.order_id))
-        elif e.type is EventType.CANCEL:
-            engine.cancel(e.order_id)
-        else:
-            engine.modify(e.order_id, e.price, e.qty)
+        apply_event(engine, e)
     return engine

@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  java:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,9 +26,37 @@ jobs:
       - name: Build and run tests
         run: ./gradlew build
 
+      # Re-run the seed-42 export and fail if it differs from the committed fixture.
+      # Catches a Java engine change that wasn't followed by a fixture update.
+      - name: Parity fixture is up to date
+        run: |
+          ./gradlew exportParity
+          git diff --exit-code -- parity/
+
       - name: Upload test report if tests fail
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-report
           path: app/build/reports/tests/test/
+
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install the package with dev tools
+        run: pip install -e ".[dev]"
+
+      - name: Run tests (including Java/Python parity)
+        run: pytest
