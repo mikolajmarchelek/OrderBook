@@ -1,3 +1,11 @@
+"""Records Kraken's public BTC/USD order book and trades.
+
+Every raw message is appended, with a receive timestamp, to one
+gzip-compressed file per UTC hour: data/kraken_btcusd_YYYY-MM-DDTHH.tsv.gz
+
+Stage D (in progress): D1 done, one connection's lifetime lives in record_once();
+main() owns the writer. Reconnecting comes in D2.
+"""
 
 import asyncio
 import gzip
@@ -57,36 +65,40 @@ class HourlyWriter:
         self.close()
 
 
-async def main() -> None:
+async def record_once(writer: HourlyWriter) -> None:
+    """One connection's lifetime: connect, subscribe, record until the connection ends."""
     count = 0
+    async with websockets.connect(URL) as ws:
+        book_request = {
+            "method": "subscribe",
+            "params": {
+                "channel": "book",
+                "symbol": [SYMBOL],
+                "depth": BOOK_DEPTH,
+            },
+        }
+        await ws.send(json.dumps(book_request))
 
-    with HourlyWriter(DATA_DIR, FILE_PREFIX) as writer:
-        async with websockets.connect(URL) as ws:
-            book_request = {
-                "method": "subscribe",
-                "params": {
-                    "channel": "book",
-                    "symbol": [SYMBOL],
-                    "depth": BOOK_DEPTH,
-                },
-            }
-            await ws.send(json.dumps(book_request))
+        trade_request = {
+            "method": "subscribe",
+            "params": {
+                "channel": "trade",
+                "symbol": [SYMBOL],
+            },
+        }
+        await ws.send(json.dumps(trade_request))
 
-            trade_request = {
-                "method": "subscribe",
-                "params": {
-                    "channel": "trade",
-                    "symbol": [SYMBOL],
-                },
-            }
-            await ws.send(json.dumps(trade_request))
+        async for raw in ws:
+            recv_ns = time.time_ns()          # first: as close to arrival as possible
+            writer.write(recv_ns, raw)
+            count += 1
+            if count % 500 == 0:
+                print(f"recorded {count} messages")
 
-            async for raw in ws:
-                recv_ns = time.time_ns()          # first: as close to arrival as possible
-                writer.write(recv_ns, raw)
-                count += 1
-                if count % 500 == 0:
-                    print(f"recorded {count} messages")
+
+async def main() -> None:
+    with HourlyWriter(DATA_DIR, FILE_PREFIX) as writer:   # main creates and owns the writer
+        await record_once(writer)                         # record_once borrows it
 
 
 if __name__ == "__main__":
