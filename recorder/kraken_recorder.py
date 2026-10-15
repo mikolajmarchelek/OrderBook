@@ -24,6 +24,7 @@ FILE_PREFIX = "kraken_btcusd"
 RECONNECT_MIN = 1
 RECONNECT_MAX = 60
 HEALTHY_AFTER = 60
+SILENCE_TIMEOUT = 30
 
 
 
@@ -92,7 +93,8 @@ async def record_once(writer: HourlyWriter) -> None:
         }
         await ws.send(json.dumps(trade_request))
 
-        async for raw in ws:
+        while True:
+            raw = await asyncio.wait_for(ws.recv(), timeout=SILENCE_TIMEOUT)
             recv_ns = time.time_ns()          # first: as close to arrival as possible
             writer.write(recv_ns, raw)
             count += 1
@@ -119,6 +121,6 @@ async def main() -> None:
             print(f"connection lasted {lasted:.1f} s, waiting {backoff} s before reconnecting")
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX)       # 1, 2, 4, ... 32, 60, 60, ...
-            
+
 if __name__ == "__main__":
     asyncio.run(main())
