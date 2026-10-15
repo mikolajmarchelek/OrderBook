@@ -21,6 +21,10 @@ SYMBOL = "BTC/USD"
 BOOK_DEPTH = 25
 DATA_DIR = Path("data")
 FILE_PREFIX = "kraken_btcusd"
+RECONNECT_MIN = 1
+RECONNECT_MAX = 60
+HEALTHY_AFTER = 60
+
 
 
 class HourlyWriter:
@@ -97,9 +101,24 @@ async def record_once(writer: HourlyWriter) -> None:
 
 
 async def main() -> None:
-    with HourlyWriter(DATA_DIR, FILE_PREFIX) as writer:   # main creates and owns the writer
-        await record_once(writer)                         # record_once borrows it
+    """Supervisor: keep recording forever, reconnecting with exponential backoff."""
+    backoff = RECONNECT_MIN
+    with HourlyWriter(DATA_DIR, FILE_PREFIX) as writer:     # file stays open across reconnects
+        while True:
+            started = time.monotonic()
+            try:
+                await record_once(writer)
+                print("connection closed by the server")
+            except (websockets.ConnectionClosed, websockets.InvalidHandshake, OSError) as e:
+                print(f"connection lost: {e!r}")
 
+            lasted = time.monotonic() - started
+            if lasted >= HEALTHY_AFTER:                     # it was a normal blip: retry fast
+                backoff = RECONNECT_MIN
 
+            print(f"connection lasted {lasted:.1f} s, waiting {backoff} s before reconnecting")
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, RECONNECT_MAX)       # 1, 2, 4, ... 32, 60, 60, ...
+            
 if __name__ == "__main__":
     asyncio.run(main())
