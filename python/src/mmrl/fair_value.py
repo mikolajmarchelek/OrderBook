@@ -26,4 +26,9 @@ class FairValue:
 
     def step(self) -> float:
         """Advance one time step. Returns the new value."""
-        
+        p = self.params
+        z = self.rng.gauss(0.0, 1.0)                        # random shock: mean 0, std 1
+        self.value += p.sigma * math.sqrt(p.dt) * z         # V ← V + σ·√Δt·Z
+        self.value = max(self.value, 1.0)                   # a price never goes below 1 tick
+        return self.value   
+               

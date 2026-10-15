@@ -11,6 +11,7 @@ import asyncio
 import gzip
 import json
 import time
+import signal
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -74,6 +75,7 @@ async def record_once(writer: HourlyWriter) -> None:
     """One connection's lifetime: connect, subscribe, record until the connection ends."""
     count = 0
     async with websockets.connect(URL) as ws:
+        writer.write(time.time_ns(), json.dumps({"channel": "recorder", "event": "connected"}))
         book_request = {
             "method": "subscribe",
             "params": {
@@ -104,15 +106,25 @@ async def record_once(writer: HourlyWriter) -> None:
 
 async def main() -> None:
     """Supervisor: keep recording forever, reconnecting with exponential backoff."""
+    loop = asyncio.get_running_loop()
+    try:
+        loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
+    except NotImplementedError:
+        pass
+
     backoff = RECONNECT_MIN
     with HourlyWriter(DATA_DIR, FILE_PREFIX) as writer:     # file stays open across reconnects
         while True:
             started = time.monotonic()
             try:
                 await record_once(writer)
-                print("connection closed by the server")
+                reason = "closed by server"
             except (websockets.ConnectionClosed, websockets.InvalidHandshake, OSError) as e:
-                print(f"connection lost: {e!r}")
+                reason = repr(e)
+            
+            print(f"connection lost: {reason}")
+            writer.write(time.time_ns(), json.dumps(
+                {"channel": "recorder", "event": "disconnected", "reason": reason}))
 
             lasted = time.monotonic() - started
             if lasted >= HEALTHY_AFTER:                     # it was a normal blip: retry fast
@@ -123,4 +135,7 @@ async def main() -> None:
             backoff = min(backoff * 2, RECONNECT_MAX)       # 1, 2, 4, ... 32, 60, 60, ...
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print("recorder stopped")
