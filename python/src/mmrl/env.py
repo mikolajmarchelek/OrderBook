@@ -55,6 +55,13 @@ class MarketMakingEnv(gym.Env):
         k = self.p.max_offset
         return 1 + action // k, 1 + action % k
 
+    def encode_action(self, bid_offset: float, ask_offset: float) -> int:
+        """(bid offset, ask offset) in ticks -> nearest action number. Offsets are clamped to 1..k."""
+        k = self.p.max_offset
+        b = min(max(round(bid_offset), 1), k)
+        a = min(max(round(ask_offset), 1), k)
+        return (b - 1) * k + (a - 1)
+
     # ---------- the market as the agent sees it ----------
 
     def reference_mid(self) -> float:
