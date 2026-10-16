@@ -7,7 +7,7 @@ name = "mmrl"
 version = "0.1.0"
 description = "Market-making RL on a limit order book: Python twin of the Java matching engine"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["gymnasium>=1.0", "numpy>=1.26"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
