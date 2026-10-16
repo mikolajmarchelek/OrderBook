@@ -52,3 +52,19 @@ def evaluate(policy: Policy, params: EnvParams | None = None, seeds=range(10)) -
         mean_abs_inventory=statistics.fmean(abs_q),
         max_abs_inventory=max_q,
     )
+
+
+class ModelPolicy:
+    """Wraps a trained model (anything with SB3's predict(obs) -> (action, state)) as a Policy.
+
+    evaluate() calls policy(env) at the start of each step, when the environment is in exactly
+    the state its last observation described, so we rebuild that observation and ask the model.
+    """
+
+    def __init__(self, model, deterministic: bool = True) -> None:
+        self.model = model
+        self.deterministic = deterministic   # True: always the most likely action (for evaluation)
+
+    def __call__(self, env: MarketMakingEnv) -> int:
+        action, _ = self.model.predict(env._observation(), deterministic=self.deterministic)
+        return int(action)
