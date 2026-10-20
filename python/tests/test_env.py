@@ -80,3 +80,36 @@ def test_reference_mid_ignores_our_own_quotes():
     before = env.reference_mid()
     env.account.quote(math.ceil(before) - 1, math.floor(before) + 1, 2)   # quote inside the spread
     assert env.reference_mid() == before
+
+
+def _market_features(env):
+    obs = env._observation()
+    return obs[2], obs[3], obs[4]              # spread, imbalance(1), imbalance(5)
+
+
+def test_market_features_ignore_our_own_quotes():
+    """Placing our quotes must not change what the agent sees of the market."""
+    from mmrl.types import Side
+    env = small()
+    env.reset(seed=5)
+    before = _market_features(env)
+    raw_before = env.market.engine.book.snapshot(5).imbalance(1)
+
+    bid, ask = env._others_best(Side.BUY), env._others_best(Side.SELL)
+    env.account.quote(bid, ask, 7)             # join the best levels with a big size
+    assert env.account.inventory == 0          # joining (not crossing) must not trade
+
+    assert _market_features(env) == before                                 # our features: unchanged
+    assert env.market.engine.book.snapshot(5).imbalance(1) != raw_before   # raw book: changed
+
+
+def test_imbalance_skips_levels_that_are_only_ours():
+    from mmrl.types import Side
+    env = small()
+    env.reset(seed=6)
+    bid, ask = env._others_best(Side.BUY), env._others_best(Side.SELL)
+    assert ask - bid >= 3, "need room inside the spread for this test"
+    before = _market_features(env)
+    env.account.quote(bid + 1, ask - 1, 5)     # improve both sides: new levels holding only us
+    assert _market_features(env) == before
+    assert env._others_best(Side.BUY) == bid and env._others_best(Side.SELL) == ask

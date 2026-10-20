@@ -9,6 +9,7 @@ Each step (= 1 simulated second):
 
 from __future__ import annotations
 
+import itertools
 import math
 from dataclasses import dataclass, field
 
@@ -71,18 +72,34 @@ class MarketMakingEnv(gym.Env):
             self._last_mid = (bid + ask) / 2
         return self._last_mid
 
-    def _others_best(self, side: Side) -> int | None:
-        book = self.market.engine.book
-        for level in book._levels_best_first(side):
+    def _others_levels(self, side: Side):
+        """Yield (price, quantity) for one side, best first, counting only OTHER traders' orders.
+
+        A level that holds nothing but our own order is skipped entirely: it is not market
+        information, it is us. Every market feature is built from this, never from the raw book.
+        """
+        for level in self.market.engine.book._levels_best_first(side):
             ours = sum(o.remaining_qty for o in level.orders if o.owner == AGENT_OWNER)
             if level.total_qty - ours > 0:
-                return level.price
-        return None
+                yield level.price, level.total_qty - ours
+
+    def _others_best(self, side: Side) -> int | None:
+        return next((price for price, _ in self._others_levels(side)), None)
+
+    def _others_imbalance(self, k: int) -> float:
+        """(bid qty - ask qty) / (bid qty + ask qty) over the top k levels of OTHER traders' orders.
+
+        The raw book's imbalance counts our own quotes, so it partly measures our own inventory:
+        when long we lean our ask in, which adds ask quantity and pushes imbalance negative.
+        """
+        bid = sum(qty for _, qty in itertools.islice(self._others_levels(Side.BUY), k))
+        ask = sum(qty for _, qty in itertools.islice(self._others_levels(Side.SELL), k))
+        total = bid + ask
+        return 0.0 if total == 0 else (bid - ask) / total
 
     def _observation(self) -> np.ndarray:
-        p, book = self.p, self.market.engine.book
+        p = self.p
         mid = self.reference_mid()
-        snap = book.snapshot(5)
         bid, ask = self._others_best(Side.BUY), self._others_best(Side.SELL)
         spread = (ask - bid) if bid is not None and ask is not None else 0
         mids = self._mids
@@ -91,8 +108,8 @@ class MarketMakingEnv(gym.Env):
             self.account.inventory / p.max_inventory,         # how loaded we are, -1..1
             1.0 - self._t / p.episode_steps,                  # time left in the episode, 1..0
             spread / 10.0,                                    # market spread (others only)
-            snap.imbalance(1),                                # order book imbalance, top level
-            snap.imbalance(5),                                # ... and top 5 levels
+            self._others_imbalance(1),                        # order book imbalance, top level (others only)
+            self._others_imbalance(5),                        # ... and top 5 levels
             ret(1) / 5.0,                                     # recent mid moves
             ret(5) / 5.0,
             ret(30) / 10.0,
@@ -148,7 +165,7 @@ class MarketMakingEnv(gym.Env):
         self._value = new_value
 
         q = self.account.inventory
-        reward = pnl - p.inventory_penalty * q**2
+        reward = pnl - p.inventory_penalty * q * q
 
         truncated = self._t >= p.episode_steps
         if truncated:
