@@ -62,6 +62,7 @@ tasks.named<Test>("test") {
 javafx {
     version = "21.0.2"
     modules = listOf("javafx.controls")
+    if (System.getProperty("os.arch") == "aarch64") setPlatform("linux")
 }
 
 // Writes the cross-language parity fixture:  .\gradlew.bat exportParity
